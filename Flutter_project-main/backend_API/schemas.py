@@ -2,9 +2,6 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
-# ==========================================
-# USUARIOS Y LOGIN (COMPARTIDO WEB / MÓVIL)
-# ==========================================
 class UsuarioCrear(BaseModel):
     nom_usr: str = Field(min_length=2, max_length=100)
     mail: str = Field(min_length=5, max_length=150)
@@ -19,6 +16,7 @@ class UsuarioRespuesta(BaseModel):
     mail: str
     dir_usr: str | None = None
     tip_usu: int
+    foto_perfil: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -41,8 +39,9 @@ class UsuarioActualizar(BaseModel):
     password: str | None = Field(default=None, min_length=6, max_length=128)
     dir_usr: str | None = None
     tip_usu: int | str | None = None
+    foto_perfil: str | None = None
 
-    @field_validator("nom_usr", "mail", "password", "dir_usr", mode="before")
+    @field_validator("nom_usr", "mail", "password", "dir_usr", "foto_perfil", mode="before")
     @classmethod
     def vacio_a_none(cls, value):
         if isinstance(value, str) and not value.strip():
@@ -57,9 +56,6 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=1, max_length=128)
 
 
-# ==========================================
-# BLOG (APP MÓVIL)
-# ==========================================
 class BlogCrear(BaseModel):
     titulo: str = Field(min_length=2, max_length=150)
     descripcion: str = Field(min_length=1)
@@ -77,9 +73,6 @@ class BlogRespuesta(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-# ==========================================
-# COMENTARIOS (APP MÓVIL)
-# ==========================================
 class ComentarioCrear(BaseModel):
     comentario: str = Field(min_length=1)
     usr_id: int

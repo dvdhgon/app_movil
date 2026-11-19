@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/user_model.dart';
 import '../models/services/user_service.dart';
 import '../widgets/admin_drawer.dart';
@@ -11,30 +13,51 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
-  final UserService userService = UserService();
-  final _formKey = GlobalKey<FormState>();
+  static const Color colorVino = Color(0xFF722F37);
+  static const Color colorVinoOscuro = Color(0xFF5A252B);
+  static const Color colorDorado = Color(0xFFD4AF37);
+  static const Color colorFondo = Color(0xFFFAF7F5);
 
   final TextEditingController nombreController = TextEditingController();
   final TextEditingController correoController = TextEditingController();
   final TextEditingController passwordController = TextEditingController();
   final TextEditingController direccionController = TextEditingController();
+  final UserService userService = UserService();
 
-  int _tipoUsuario = 2; // Default: Usuario Normal (2)
+  int tipoUsuario = 2;
+  bool ocultarPassword = true;
   bool cargando = false;
 
-  Map<String, dynamic> usuarioActual = {};
-  bool argumentoLeido = false;
+  Map<String, dynamic> usuarioActual = {'tip_usu': 2};
+  bool _sesionCargada = false;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!argumentoLeido) {
-      final argumento = ModalRoute.of(context)?.settings.arguments;
-      if (argumento is Map<String, dynamic>) {
-        usuarioActual = Map<String, dynamic>.from(argumento);
-      }
-      argumentoLeido = true;
+    if (!_sesionCargada) {
+      _sesionCargada = true;
+      _cargarSesion();
     }
+  }
+
+  Future<void> _cargarSesion() async {
+    final argumento = ModalRoute.of(context)?.settings.arguments;
+    final prefs = await SharedPreferences.getInstance();
+
+    if (argumento is Map<String, dynamic> && argumento.isNotEmpty) {
+      usuarioActual = Map<String, dynamic>.from(argumento);
+    } else {
+      final sesion = prefs.getString('usuario_sesion');
+      if (sesion != null) {
+        usuarioActual = Map<String, dynamic>.from(jsonDecode(sesion));
+      }
+    }
+    if (mounted) setState(() {});
+  }
+
+  bool get esAdmin {
+    final tipUsu = usuarioActual['tip_usu'];
+    return tipUsu == 1 || tipUsu.toString() == '1';
   }
 
   @override
@@ -46,70 +69,77 @@ class _RegisterPageState extends State<RegisterPage> {
     super.dispose();
   }
 
-  Future<void> registrarUsuario() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> registrar() async {
+    if (nombreController.text.trim().isEmpty ||
+        correoController.text.trim().isEmpty ||
+        passwordController.text.trim().isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Completa nombre, correo y contraseña'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
 
     setState(() => cargando = true);
 
     try {
-      final nuevoUsuario = UserModel(
-        id: 0,
+      final nuevo = UserModel(
         nombre: nombreController.text.trim(),
-        correo: correoController.text.trim().toLowerCase(),
-        password: passwordController.text,
-        direccion: direccionController.text.trim().isEmpty
-            ? 'Sin dirección'
-            : direccionController.text.trim(),
-        tipoUsuario: _tipoUsuario,
+        correo: correoController.text.trim(),
+        password: passwordController.text.trim(),
+        direccion: direccionController.text.trim(),
+        tipoUsuario: esAdmin ? tipoUsuario : 2,
       );
 
-      await userService.agregarUsuario(nuevoUsuario);
+      await userService.agregarUsuario(nuevo);
 
       if (!mounted) return;
-
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('¡Usuario registrado con éxito!'),
+          content: Text('Usuario registrado correctamente'),
           backgroundColor: Colors.green,
         ),
       );
 
       if (esAdmin) {
-        Navigator.pushReplacementNamed(
-          context,
-          '/users',
-          arguments: usuarioActual,
-        );
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context, true);
+        } else {
+          Navigator.pushReplacementNamed(context, '/users', arguments: usuarioActual);
+        }
       } else {
-        Navigator.pop(context);
+        Navigator.pushReplacementNamed(context, '/login');
       }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            e.toString().replaceFirst('Exception: ', ''),
-          ),
+          content: Text(e.toString().replaceFirst('Exception: ', '')),
           backgroundColor: Colors.red,
         ),
       );
     } finally {
-      if (mounted) {
-        setState(() => cargando = false);
-      }
+      if (mounted) setState(() => cargando = false);
     }
-  }
-
-  bool get esAdmin {
-    final tipUsu = usuarioActual['tip_usu'];
-    return tipUsu == 1 || tipUsu.toString() == '1';
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: colorFondo,
       appBar: AppBar(
-        title: const Text('Registrar Usuario'),
+        backgroundColor: colorVino,
+        foregroundColor: Colors.white,
+        title: const Text(
+          'Registro de Usuario',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(3),
+          child: Container(color: colorDorado, height: 3),
+        ),
       ),
       drawer: esAdmin
           ? AdminDrawer(usuario: usuarioActual, rutaActual: '/register')
@@ -118,107 +148,144 @@ class _RegisterPageState extends State<RegisterPage> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Container(
-            constraints: const BoxConstraints(maxWidth: 500),
-            padding: const EdgeInsets.all(24),
+            constraints: const BoxConstraints(maxWidth: 460),
             decoration: BoxDecoration(
-              color: const Color(0xFFF8F5FB),
+              color: Colors.white,
               borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: colorDorado.withValues(alpha: 0.7), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: colorVino.withValues(alpha: 0.08),
+                  blurRadius: 15,
+                  offset: const Offset(0, 5),
+                ),
+              ],
             ),
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(
-                    Icons.person_add,
-                    size: 60,
-                    color: Color(0xFF08245C),
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: nombreController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nombre completo',
-                      border: OutlineInputBorder(),
+            child: Column(
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 20),
+                  decoration: const BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [colorVino, colorVinoOscuro],
                     ),
-                    validator: (v) =>
-                        v == null || v.isEmpty ? 'Campo requerido' : null,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: correoController,
-                    decoration: const InputDecoration(
-                      labelText: 'Correo electrónico',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (v) => v == null || !v.contains('@')
-                        ? 'Correo inválido'
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: passwordController,
-                    obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Contraseña',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (v) =>
-                        v == null || v.length < 8 ? 'Mínimo 8 caracteres' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: direccionController,
-                    decoration: const InputDecoration(
-                      labelText: 'Dirección (opcional)',
-                      border: OutlineInputBorder(),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<int>(
-                    initialValue: _tipoUsuario,
-                    decoration: const InputDecoration(
-                      labelText: 'Tipo de usuario',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: const [
-                      DropdownMenuItem(
-                        value: 2,
-                        child: Text('Usuario Normal'),
-                      ),
-                      DropdownMenuItem(
-                        value: 1,
-                        child: Text('Administrador'),
+                  child: const Row(
+                    children: [
+                      Icon(Icons.person_add, color: colorDorado, size: 28),
+                      SizedBox(width: 12),
+                      Text(
+                        'Crear nueva cuenta',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
-                    onChanged: (val) {
-                      if (val != null) {
-                        setState(() => _tipoUsuario = val);
-                      }
-                    },
                   ),
-                  const SizedBox(height: 24),
-                  cargando
-                      ? const CircularProgressIndicator()
-                      : SizedBox(
-                          width: double.infinity,
-                          height: 48,
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF08245C),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(24),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    children: [
+                      TextField(
+                        controller: nombreController,
+                        decoration: InputDecoration(
+                          labelText: 'Nombre completo',
+                          prefixIcon: const Icon(Icons.person_outline, color: colorVino),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: correoController,
+                        keyboardType: TextInputType.emailAddress,
+                        decoration: InputDecoration(
+                          labelText: 'Correo electrónico',
+                          prefixIcon: const Icon(Icons.email_outlined, color: colorVino),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: direccionController,
+                        decoration: InputDecoration(
+                          labelText: 'Dirección (opcional)',
+                          prefixIcon: const Icon(Icons.location_on_outlined, color: colorVino),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      TextField(
+                        controller: passwordController,
+                        obscureText: ocultarPassword,
+                        decoration: InputDecoration(
+                          labelText: 'Contraseña',
+                          prefixIcon: const Icon(Icons.lock_outline, color: colorVino),
+                          suffixIcon: IconButton(
+                            icon: Icon(
+                              ocultarPassword
+                                  ? Icons.visibility_off_outlined
+                                  : Icons.visibility_outlined,
+                              color: colorVino,
+                            ),
+                            onPressed: () =>
+                                setState(() => ocultarPassword = !ocultarPassword),
+                          ),
+                          border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                      if (esAdmin) ...[
+                        const SizedBox(height: 14),
+                        DropdownButtonFormField<int>(
+                          initialValue: tipoUsuario,
+                          decoration: InputDecoration(
+                            labelText: 'Tipo de Usuario',
+                            prefixIcon: const Icon(Icons.admin_panel_settings,
+                                color: colorVino),
+                            border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10)),
+                          ),
+                          items: const [
+                            DropdownMenuItem(value: 1, child: Text('Administrador')),
+                            DropdownMenuItem(value: 2, child: Text('Usuario Normal')),
+                          ],
+                          onChanged: (v) {
+                            if (v != null) setState(() => tipoUsuario = v);
+                          },
+                        ),
+                      ],
+                      const SizedBox(height: 24),
+                      cargando
+                          ? const CircularProgressIndicator(color: colorVino)
+                          : SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: ElevatedButton.icon(
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: colorVino,
+                                  foregroundColor: Colors.white,
+                                  side: const BorderSide(color: colorDorado),
+                                ),
+                                icon: const Icon(Icons.check, color: colorDorado),
+                                label: const Text(
+                                  'REGISTRAR',
+                                  style: TextStyle(fontWeight: FontWeight.bold),
+                                ),
+                                onPressed: registrar,
                               ),
                             ),
-                            onPressed: registrarUsuario,
-                            child: const Text(
-                              'REGISTRAR',
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ),
-                ],
-              ),
+                    ],
+                  ),
+                ),
+              ],
             ),
           ),
         ),

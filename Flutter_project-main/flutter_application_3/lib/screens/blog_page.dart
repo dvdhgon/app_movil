@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/post_model.dart';
 import '../models/services/post_service.dart';
 import '../widgets/post_card.dart';
@@ -13,11 +15,13 @@ class BlogPage extends StatefulWidget {
 }
 
 class _BlogPageState extends State<BlogPage> {
+  static const Color colorVino = Color(0xFF722F37);
+  static const Color colorDorado = Color(0xFFD4AF37);
+  static const Color colorFondo = Color(0xFFFAF7F5);
+
   final PostService postService = PostService();
   late Future<List<PostModel>> futurePosts;
-  
   String nombreUsuario = 'Usuario';
-  
   Map<String, dynamic> usuarioActual = {
     'nom_usr': 'Usuario',
     'mail': '',
@@ -34,23 +38,29 @@ class _BlogPageState extends State<BlogPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-
     if (!argumentoLeido) {
-      final argumento = ModalRoute.of(context)?.settings.arguments;
-
-      if (argumento is Map<String, dynamic>) {
-        usuarioActual = Map<String, dynamic>.from(argumento);
-        nombreUsuario = usuarioActual['nombre'] ?? usuarioActual['nom_usr'] ?? 'Usuario';
-      } else if (argumento is String && argumento.isNotEmpty) {
-        nombreUsuario = argumento;
-        usuarioActual = {
-          'nom_usr': nombreUsuario,
-          'mail': '',
-          'tip_usu': 2,
-        };
-      }
-
       argumentoLeido = true;
+      _cargarUsuario();
+    }
+  }
+
+  Future<void> _cargarUsuario() async {
+    final argumento = ModalRoute.of(context)?.settings.arguments;
+    final prefs = await SharedPreferences.getInstance();
+
+    if (argumento is Map<String, dynamic> && argumento.isNotEmpty) {
+      usuarioActual = Map<String, dynamic>.from(argumento);
+    } else {
+      final sesion = prefs.getString('usuario_sesion');
+      if (sesion != null) {
+        usuarioActual = Map<String, dynamic>.from(jsonDecode(sesion));
+      }
+    }
+
+    if (mounted) {
+      setState(() {
+        nombreUsuario = usuarioActual['nom_usr']?.toString() ?? 'Usuario';
+      });
     }
   }
 
@@ -68,18 +78,52 @@ class _BlogPageState extends State<BlogPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: colorFondo,
       appBar: AppBar(
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        backgroundColor: colorVino,
+        foregroundColor: Colors.white,
+        elevation: 2,
+        title: Row(
           children: [
-            const Text('Blog'),
-            Text(
-              'Bienvenido, $nombreUsuario',
-              style: const TextStyle(fontSize: 12),
+            ClipOval(
+              child: Image.network(
+                'http://127.0.0.1:8000/uploads/logo%20duncan.jpeg',
+                width: 34,
+                height: 34,
+                fit: BoxFit.cover,
+                errorBuilder: (_, __, ___) =>
+                    const Icon(Icons.pets, color: colorDorado, size: 24),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Blog · Duncan Mascotas',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                ),
+                Text(
+                  'Hola, $nombreUsuario',
+                  style: const TextStyle(fontSize: 12, color: colorDorado),
+                ),
+              ],
             ),
           ],
         ),
         actions: [
+          IconButton(
+            tooltip: 'Mi Perfil',
+            icon: const Icon(Icons.account_circle, color: colorDorado),
+            onPressed: () async {
+              await Navigator.pushNamed(
+                context,
+                '/profile',
+                arguments: usuarioActual,
+              );
+              _cargarUsuario();
+            },
+          ),
           IconButton(
             tooltip: 'Actualizar',
             icon: const Icon(Icons.refresh),
@@ -87,8 +131,11 @@ class _BlogPageState extends State<BlogPage> {
           ),
           IconButton(
             tooltip: 'Cerrar sesión',
-            icon: const Icon(Icons.logout, color: Colors.red),
-            onPressed: () {
+            icon: const Icon(Icons.logout, color: Colors.white),
+            onPressed: () async {
+              final prefs = await SharedPreferences.getInstance();
+              await prefs.remove('usuario_sesion');
+              if (!context.mounted) return;
               Navigator.pushNamedAndRemoveUntil(
                 context,
                 '/login',
@@ -97,6 +144,10 @@ class _BlogPageState extends State<BlogPage> {
             },
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(3),
+          child: Container(color: colorDorado, height: 3),
+        ),
       ),
       drawer: esAdmin
           ? AdminDrawer(usuario: usuarioActual, rutaActual: '/blog')
@@ -105,23 +156,28 @@ class _BlogPageState extends State<BlogPage> {
         onPressed: () async {
           final resultado = await Navigator.pushNamed(
             context,
-            '/add_blog',
+            '/add-blog',
             arguments: usuarioActual,
           );
           if (resultado == true) {
-            recargarPosts(); 
+            recargarPosts();
           }
         },
-        icon: const Icon(Icons.add_a_photo),
-        label: const Text('Nuevo Blog'),
-        backgroundColor: const Color(0xFF08245C),
+        icon: const Icon(Icons.add_a_photo, color: colorDorado),
+        label: const Text(
+          'Nuevo Blog',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
+        backgroundColor: colorVino,
         foregroundColor: Colors.white,
       ),
       body: FutureBuilder<List<PostModel>>(
         future: futurePosts,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(
+              child: CircularProgressIndicator(color: colorVino),
+            );
           }
 
           if (snapshot.hasError) {
@@ -131,9 +187,12 @@ class _BlogPageState extends State<BlogPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.cloud_off, size: 45),
+                    const Icon(Icons.cloud_off, size: 45, color: colorVino),
                     const SizedBox(height: 12),
-                    const Text('No fue posible cargar el blog.', textAlign: TextAlign.center),
+                    const Text(
+                      'No fue posible cargar el blog.',
+                      textAlign: TextAlign.center,
+                    ),
                     const SizedBox(height: 8),
                     Text('${snapshot.error}', textAlign: TextAlign.center),
                     const SizedBox(height: 12),
@@ -151,11 +210,7 @@ class _BlogPageState extends State<BlogPage> {
 
           if (posts.isEmpty) {
             return const Center(
-              child: Text(
-                'No hay publicaciones registradas.\n¡Haz clic abajo para crear una!',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 16, color: Colors.grey),
-              ),
+              child: Text('No hay publicaciones registradas.'),
             );
           }
 
@@ -163,19 +218,19 @@ class _BlogPageState extends State<BlogPage> {
             padding: const EdgeInsets.all(16),
             children: [
               const Text(
-                'Bienvenido',
+                'Comunidad Duncan',
                 style: TextStyle(
-                  fontSize: 28,
+                  fontSize: 26,
                   fontWeight: FontWeight.bold,
-                  color: Color(0xFF08245C),
+                  color: colorVino,
                 ),
               ),
-              const SizedBox(height: 5),
+              const SizedBox(height: 4),
               const Text(
-                'Descubre nuevas ideas',
-                style: TextStyle(fontSize: 16, color: Colors.grey),
+                'Consejos, experiencias y cuidado animal',
+                style: TextStyle(fontSize: 15, color: Colors.black54),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 18),
               ...posts.map(
                 (post) => PostCard(
                   post: post,

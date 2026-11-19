@@ -20,6 +20,7 @@ class Usuario(Base):
     pass_hash = Column("pass", String(255), nullable=False)
     dir_usr = Column(String(200), nullable=True)
     tip_usu = Column(String(20), nullable=False, default="user")
+    foto_perfil = Column(String(500), nullable=True)
 
 
 class Blog(Base):

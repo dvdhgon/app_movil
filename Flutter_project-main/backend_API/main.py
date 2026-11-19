@@ -18,7 +18,7 @@ from schemas import (
     UsuarioCrear,
     UsuarioRespuesta,
 )
-from sqlalchemy import delete, select
+from sqlalchemy import delete, inspect, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -62,6 +62,17 @@ def rol_a_bd(tip_usu) -> str:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    # Asegura que la columna foto_perfil exista en la tabla usuario de sistema_duncan
+    try:
+        inspector = inspect(engine)
+        columnas = [col["name"] for col in inspector.get_columns("usuario")]
+        if "foto_perfil" not in columnas:
+            with engine.begin() as conn:
+                conn.execute(
+                    text("ALTER TABLE usuario ADD COLUMN foto_perfil VARCHAR(500) NULL")
+                )
+    except Exception as e:
+        print(f"Aviso columna foto_perfil: {e}")
     yield
 
 
@@ -152,6 +163,37 @@ def obtener_usuario(id_usuario: int, db: Session = Depends(obtener_sesion)):
     return usuario
 
 
+@app.post("/usuarios/{id_usuario}/foto", response_model=UsuarioRespuesta)
+async def subir_foto_perfil(
+    id_usuario: int,
+    foto: UploadFile = File(...),
+    db: Session = Depends(obtener_sesion),
+):
+    usuario = db.get(Usuario, id_usuario)
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    if not foto.filename:
+        raise HTTPException(status_code=400, detail="No se recibió ningún archivo")
+
+    extension = Path(foto.filename).suffix.lower()
+    if extension not in [".jpg", ".jpeg", ".png", ".webp"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Formato no permitido. Usa JPG, PNG o WEBP",
+        )
+
+    nombre_archivo = f"perfil_{id_usuario}_{uuid.uuid4().hex[:10]}{extension}"
+    destino = UPLOAD_DIR / nombre_archivo
+    with destino.open("wb") as buffer:
+        shutil.copyfileobj(foto.file, buffer)
+
+    usuario.foto_perfil = f"/uploads/{nombre_archivo}"
+    db.commit()
+    db.refresh(usuario)
+    return usuario
+
+
 @app.put("/usuarios/{id_usuario}", response_model=UsuarioRespuesta)
 def actualizar_usuario(
     id_usuario: int,
@@ -159,6 +201,11 @@ def actualizar_usuario(
     db: Session = Depends(obtener_sesion),
 ):
     usuario = db.get(Usuario, id_usuario)
+    # Respaldo: si el ID no coincide, intenta localizar por correo
+    if not usuario and usuario_in.mail:
+        usuario = db.scalar(
+            select(Usuario).where(Usuario.mail == usuario_in.mail.strip().lower())
+        )
     if not usuario:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
@@ -167,7 +214,7 @@ def actualizar_usuario(
         duplicado = db.scalar(
             select(Usuario).where(
                 Usuario.mail == correo_limpio,
-                Usuario.id_usr != id_usuario,
+                Usuario.id_usr != usuario.id_usr,
             )
         )
         if duplicado:
@@ -180,6 +227,8 @@ def actualizar_usuario(
         usuario.dir_usr = usuario_in.dir_usr
     if usuario_in.tip_usu is not None:
         usuario.tip_usu = rol_a_bd(usuario_in.tip_usu)
+    if usuario_in.foto_perfil is not None:
+        usuario.foto_perfil = usuario_in.foto_perfil
     if usuario_in.password is not None:
         usuario.pass_hash = encriptar_password(usuario_in.password)
 

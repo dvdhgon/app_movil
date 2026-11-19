@@ -1,10 +1,11 @@
 class UserModel {
-  final int? id; // Ahora es opcional (int?) para evitar fallos si no existe ID aún
+  final int? id;
   final String nombre;
   final String correo;
   final String? password;
   final String? direccion;
   final int tipoUsuario;
+  final String? fotoPerfil;
 
   UserModel({
     this.id,
@@ -12,11 +13,11 @@ class UserModel {
     required this.correo,
     this.password,
     this.direccion,
-    this.tipoUsuario = 1,
+    this.tipoUsuario = 2,
+    this.fotoPerfil,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
-    // Conversión segura de ID para evitar crash por tipos numéricos o nulos
     final rawId = json['id_usr'] ?? json['id_usuario'] ?? json['id'];
     final int? parsedId = rawId != null ? int.tryParse(rawId.toString()) : null;
 
@@ -26,11 +27,22 @@ class UserModel {
       correo: (json['mail'] ?? json['correo'] ?? '').toString(),
       password: json['password']?.toString(),
       direccion: json['dir_usr']?.toString() ?? json['direccion']?.toString(),
-      tipoUsuario: (json['tip_usu'] as num? ?? 1).toInt(),
+      tipoUsuario: (json['tip_usu'] as num? ?? 2).toInt(),
+      fotoPerfil: json['foto_perfil']?.toString(),
     );
   }
 
-  // Estructura para registrar / crear un usuario nuevo
+  Map<String, dynamic> toMap() {
+    return {
+      'id_usr': id,
+      'nom_usr': nombre,
+      'mail': correo,
+      'dir_usr': direccion,
+      'tip_usu': tipoUsuario,
+      'foto_perfil': fotoPerfil,
+    };
+  }
+
   Map<String, dynamic> toJsonCrear() {
     return {
       'nom_usr': nombre,
@@ -41,14 +53,18 @@ class UserModel {
     };
   }
 
-  // Estructura para actualizar perfil en el backend (sin contraseña)
   Map<String, dynamic> toJsonActualizar() {
-    return {
+    final map = <String, dynamic>{
       'nom_usr': nombre,
       'mail': correo,
       'dir_usr': direccion,
       'tip_usu': tipoUsuario,
+      'foto_perfil': fotoPerfil,
     };
+    if (password != null && password!.trim().isNotEmpty) {
+      map['password'] = password!.trim();
+    }
+    return map;
   }
 
   Map<String, dynamic> toJson() => toJsonActualizar();
