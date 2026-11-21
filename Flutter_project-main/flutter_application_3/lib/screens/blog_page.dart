@@ -238,7 +238,10 @@ class _BlogPageState extends State<BlogPage> {
                     Navigator.push(
                       context,
                       MaterialPageRoute<void>(
-                        builder: (context) => PostDetailPage(post: post),
+                        builder: (context) => PostDetailPage(
+                          post: post,
+                          usuarioActual: usuarioActual,
+                        ),
                       ),
                     );
                   },

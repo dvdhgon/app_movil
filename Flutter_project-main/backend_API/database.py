@@ -7,10 +7,10 @@ from sqlalchemy.orm import DeclarativeBase, sessionmaker
 load_dotenv()
 
 db_user = os.getenv("DB_USER", "root")
-db_password = os.getenv("DB_PASSWORD", "")
-db_host = os.getenv("DB_HOST", "127.0.0.1")
-db_port = int(os.getenv("DB_PORT", "3309"))
-db_name = os.getenv("DB_NAME", "sistema_duncan")
+db_password = os.getenv("DB_PASSWORD", "4591096767")
+db_host = os.getenv("DB_HOST", "localhost")
+db_port = int(os.getenv("DB_PORT", "3306"))
+db_name = os.getenv("DB_NAME", "bd_aplicacion_movil")
 
 # Intenta crear la base de datos automáticamente si no existe en MySQL
 try:
@@ -24,9 +24,9 @@ try:
         cursor.execute(f"CREATE DATABASE IF NOT EXISTS `{db_name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;")
     connection.close()
 except Exception as e:
-    print(f"Aviso BD: {e}")
+    print(f"Aviso inicial BD: {e}")
 
-# Cadena de conexión principal
+# Cadena de conexión principal SQLAlchemy
 if db_password:
     url = f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?charset=utf8mb4"
 else:

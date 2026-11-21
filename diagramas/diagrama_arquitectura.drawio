@@ -1,0 +1,72 @@
+<mxfile host="app.diagrams.net" modified="2026-11-21T06:00:00.000Z" agent="Mozilla/5.0" version="24.0.0" type="device">
+  <diagram id="arq-duncan" name="Arquitectura y Flujo de Datos">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Titulo -->
+        <mxCell id="arq_titulo" value="ARQUITECTURA DE SOFTWARE Y FLUJO DE DATOS MULTIPLATAFORMA" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;fontColor=#722F37;" vertex="1" parent="1">
+          <mxGeometry x="160" y="20" width="850" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- CAPA 1: CLIENTE (FLUTTER) -->
+        <mxCell id="capa_cliente" value="CAPA CLIENTE: APLICACIÓN MÓVIL Y WEB (FLUTTER)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#FAF7F5;strokeColor=#722F37;fontStyle=1;fontSize=13;fontColor=#722F37;" vertex="1" parent="1">
+          <mxGeometry x="60" y="80" width="300" height="480" as="geometry" />
+        </mxCell>
+
+        <mxCell id="flt_vistas" value="Vistas / Pantallas:&#xa;• Login &amp; Registro&#xa;• Feed de Blog&#xa;• Detalle de Blog &amp; Comentarios&#xa;• Gestión de Usuarios (Admin)&#xa;• Perfil &amp; Cámara (Foto)&#xa;• Mapa de Rutas (GPS)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#722F37;align=left;spacingLeft=10;" vertex="1" parent="capa_cliente">
+          <mxGeometry x="25" y="45" width="250" height="135" as="geometry" />
+        </mxCell>
+
+        <mxCell id="flt_servicios" value="Servicios HTTP (http):&#xa;• AuthService (/login)&#xa;• UserService (/usuarios)&#xa;• PostService (/blog)&#xa;• ComentarioService (/comentarios)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D4AF37;align=left;spacingLeft=10;" vertex="1" parent="capa_cliente">
+          <mxGeometry x="25" y="205" width="250" height="110" as="geometry" />
+        </mxCell>
+
+        <mxCell id="flt_storage" value="Persistencia Local:&#xa;• SharedPreferences (Sesión activa)&#xa;• Sensores: Cámara / Galería (XFile)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D4AF37;align=left;spacingLeft=10;" vertex="1" parent="capa_cliente">
+          <mxGeometry x="25" y="340" width="250" height="95" as="geometry" />
+        </mxCell>
+
+        <!-- CAPA 2: SERVIDOR API (FASTAPI) -->
+        <mxCell id="capa_api" value="CAPA DE SERVICIOS: API REST (FASTAPI / UVICORN)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#FAF7F5;strokeColor=#722F37;fontStyle=1;fontSize=13;fontColor=#722F37;" vertex="1" parent="1">
+          <mxGeometry x="430" y="80" width="320" height="480" as="geometry" />
+        </mxCell>
+
+        <mxCell id="api_endpoints" value="Endpoints RESTful (JSON / Form):&#xa;• POST /login (Validación)&#xa;• GET / POST / PUT / DELETE /usuarios&#xa;• GET / POST /blog (Base64 / Multipart)&#xa;• GET / POST /comentarios (Filtro ID)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#722F37;align=left;spacingLeft=10;" vertex="1" parent="capa_api">
+          <mxGeometry x="25" y="45" width="270" height="115" as="geometry" />
+        </mxCell>
+
+        <mxCell id="api_seguridad" value="Seguridad &amp; Middleware:&#xa;• CORS Middleware (Acceso web)&#xa;• Encriptación BCrypt / Argon2&#xa;• DTOs Pydantic (Validación tipada)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D4AF37;align=left;spacingLeft=10;" vertex="1" parent="capa_api">
+          <mxGeometry x="25" y="185" width="270" height="100" as="geometry" />
+        </mxCell>
+
+        <mxCell id="api_orm" value="Capa de Datos ORM:&#xa;• SQLAlchemy 2.0 (Modelos &amp; Sesión)&#xa;• StaticFiles (/uploads para fotos)&#xa;• Transacciones seguras con Commit/Rollback" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#722F37;align=left;spacingLeft=10;" vertex="1" parent="capa_api">
+          <mxGeometry x="25" y="310" width="270" height="115" as="geometry" />
+        </mxCell>
+
+        <!-- CAPA 3: PERSISTENCIA (MYSQL) -->
+        <mxCell id="capa_bd" value="CAPA DE PERSISTENCIA (MYSQL 8.0)" style="swimlane;whiteSpace=wrap;html=1;fillColor=#FAF7F5;strokeColor=#722F37;fontStyle=1;fontSize=13;fontColor=#722F37;" vertex="1" parent="1">
+          <mxGeometry x="820" y="80" width="290" height="480" as="geometry" />
+        </mxCell>
+
+        <mxCell id="db_mysql" value="Base de Datos: bd_aplicacion_movil&#xa;&#xa;Tablas Relacionales (InnoDB):&#xa;• usuario (id_usr, pass encriptado, ...)&#xa;• blog (id_blog, titulo, desc, img, ...)&#xa;• comentarios (id_com, fk_usr, fk_blog)&#xa;&#xa;Características:&#xa;• Claves Foráneas con Cascada&#xa;• Codificación utf8mb4_unicode_ci&#xa;• Consultas parametrizadas contra inyecciones" style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;fillColor=#FFFFFF;strokeColor=#722F37;align=left;spacingLeft=10;" vertex="1" parent="capa_bd">
+          <mxGeometry x="25" y="60" width="240" height="230" as="geometry" />
+        </mxCell>
+
+        <mxCell id="fs_uploads" value="Almacenamiento Local de Medios:&#xa;• Carpeta backend_API/uploads/&#xa;• Almacena fotos de perfil e imágenes&#xa;• Servidas mediante /uploads/{uuid}" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#FFF2CC;strokeColor=#D4AF37;align=left;spacingLeft=10;" vertex="1" parent="capa_bd">
+          <mxGeometry x="25" y="325" width="240" height="100" as="geometry" />
+        </mxCell>
+
+        <!-- Conectores y flujo de datos -->
+        <mxCell id="flujo_1" value="HTTP POST / GET&#xa;Payload JSON" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#722F37;strokeWidth=2;fontStyle=1;fontColor=#722F37;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="capa_cliente" target="capa_api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="flujo_2" value="PyMySQL TCP:3306&#xa;SQL Parametrizado" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeColor=#722F37;strokeWidth=2;fontStyle=1;fontColor=#722F37;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="capa_api" target="capa_bd">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

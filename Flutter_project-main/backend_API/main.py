@@ -1,3 +1,5 @@
+import base64
+import os
 import shutil
 import uuid
 from contextlib import asynccontextmanager
@@ -5,12 +7,14 @@ from pathlib import Path
 
 import bcrypt
 from database import Base, engine, obtener_sesion
-from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from models import Blog, Comentario, Usuario
 from pwdlib import PasswordHash
 from schemas import (
+    BlogCrear,
+    BlogRespuesta,
     ComentarioCrear,
     ComentarioRespuesta,
     LoginRequest,
@@ -34,35 +38,79 @@ def verificar_password(plain_password: str, stored_password: str) -> bool:
     if not stored_password:
         return False
 
+    # Manejo de hashes bcrypt ($2y$, $2b$, $2a$)
     if stored_password.startswith(("$2y$", "$2b$", "$2a$")):
         try:
-            hash_normalizado = ("$2b$" + stored_password[4:]).encode("utf-8")
-            return bcrypt.checkpw(plain_password.encode("utf-8"), hash_normalizado)
-        except Exception:
+            hash_normalizado = (
+                "$2b$" + stored_password[4:]
+                if stored_password.startswith("$2y$")
+                else stored_password
+            )
+            return bcrypt.checkpw(
+                plain_password.encode("utf-8"), hash_normalizado.encode("utf-8")
+            )
+        except Exception as e:
+            print(f"Aviso verificación bcrypt: {e}")
             return False
 
+    # Manejo de hashes Argon2
     if stored_password.startswith("$argon2"):
         try:
             return argon2_hasher.verify(plain_password, stored_password)
         except Exception:
             return False
 
+    # Comparación de texto plano de respaldo (para usuarios heredados)
     return plain_password == stored_password
 
 
-def rol_a_bd(tip_usu) -> str:
+def rol_a_bd(tip_usu) -> int:
+    """Convierte cualquier representación de rol al entero correspondiente para MySQL (1=Admin, 2=Usuario)."""
     if tip_usu is None:
-        return "user"
+        return 2
     val = str(tip_usu).strip().lower()
     if val in ("1", "admin", "administrador"):
-        return "admin"
-    return "user"
+        return 1
+    return 2
+
+
+UPLOAD_DIR = Path("uploads")
+UPLOAD_DIR.mkdir(exist_ok=True)
+
+
+def guardar_imagen_base64(datos_base64: str) -> str | None:
+    """Decodifica un string en formato base64 y lo almacena en la carpeta uploads."""
+    try:
+        header = ""
+        extension = ".jpg"
+        contenido = datos_base64
+
+        if "," in datos_base64:
+            partes = datos_base64.split(",", 1)
+            header = partes[0]
+            contenido = partes[1]
+            if "image/png" in header:
+                extension = ".png"
+            elif "image/webp" in header:
+                extension = ".webp"
+            elif "image/gif" in header:
+                extension = ".gif"
+
+        bytes_imagen = base64.b64decode(contenido)
+        nombre_archivo = f"img_{uuid.uuid4().hex[:12]}{extension}"
+        destino = UPLOAD_DIR / nombre_archivo
+        with open(destino, "wb") as f:
+            f.write(bytes_imagen)
+
+        return f"/uploads/{nombre_archivo}"
+    except Exception as e:
+        print(f"Error al decodificar imagen base64: {e}")
+        return None
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
-    # Asegura que la columna foto_perfil exista en la tabla usuario de sistema_duncan
     try:
         inspector = inspect(engine)
         columnas = [col["name"] for col in inspector.get_columns("usuario")]
@@ -77,12 +125,12 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="API de aplicación móvil - Sistema Duncan",
+    title="API REST - Duncan Mascotas",
+    description="Backend oficial con FastAPI y MySQL para la aplicación móvil Duncan Mascotas.",
+    version="2.0.0",
     lifespan=lifespan,
 )
 
-UPLOAD_DIR = Path("uploads")
-UPLOAD_DIR.mkdir(exist_ok=True)
 app.mount("/uploads", StaticFiles(directory=UPLOAD_DIR), name="uploads")
 
 app.add_middleware(
@@ -96,11 +144,15 @@ app.add_middleware(
 
 @app.get("/")
 def inicio():
-    return {"mensaje": "API funcionando correctamente con sistema_duncan"}
+    return {
+        "status": "online",
+        "mensaje": "API Duncan Mascotas en funcionamiento",
+        "doc": "/docs",
+    }
 
 
 # ==========================================
-# AUTENTICACIÓN / LOGIN COMPARTIDO
+# AUTENTICACIÓN / LOGIN
 # ==========================================
 @app.post("/login", response_model=UsuarioRespuesta)
 def iniciar_sesion(
@@ -201,7 +253,6 @@ def actualizar_usuario(
     db: Session = Depends(obtener_sesion),
 ):
     usuario = db.get(Usuario, id_usuario)
-    # Respaldo: si el ID no coincide, intenta localizar por correo
     if not usuario and usuario_in.mail:
         usuario = db.scalar(
             select(Usuario).where(Usuario.mail == usuario_in.mail.strip().lower())
@@ -255,16 +306,16 @@ def eliminar_usuario(id_usuario: int, db: Session = Depends(obtener_sesion)):
 
 
 # ==========================================
-# PUBLICACIONES / BLOG (APP MÓVIL)
+# PUBLICACIONES / BLOG (COMPATIBLE CON JSON Y FORM)
 # ==========================================
-@app.get("/blog")
-@app.get("/blogs")
+@app.get("/blog", response_model=list[BlogRespuesta])
+@app.get("/blogs", response_model=list[BlogRespuesta])
 def listar_blogs(db: Session = Depends(obtener_sesion)):
     return db.scalars(select(Blog).order_by(Blog.id_blog.desc())).all()
 
 
-@app.get("/blog/{blog_id}")
-@app.get("/blogs/{blog_id}")
+@app.get("/blog/{blog_id}", response_model=BlogRespuesta)
+@app.get("/blogs/{blog_id}", response_model=BlogRespuesta)
 def obtener_blog(blog_id: int, db: Session = Depends(obtener_sesion)):
     publicacion = db.get(Blog, blog_id)
     if publicacion is None:
@@ -272,36 +323,65 @@ def obtener_blog(blog_id: int, db: Session = Depends(obtener_sesion)):
     return publicacion
 
 
-@app.post("/blog", status_code=201)
-@app.post("/blogs", status_code=201)
+@app.post("/blog", response_model=BlogRespuesta, status_code=201)
+@app.post("/blogs", response_model=BlogRespuesta, status_code=201)
 async def crear_blog(
-    titulo: str = Form(...),
-    contenido: str = Form(None),
-    descripcion: str = Form(None),
-    tags: str = Form(None),
-    imagen: UploadFile = File(None),
-    img: UploadFile = File(None),
+    request: Request,
     db: Session = Depends(obtener_sesion),
 ):
-    texto_final = (descripcion or contenido or "Sin contenido").strip()
-    archivo_imagen = imagen or img
+    """
+    Permite registrar blogs recibiendo tanto JSON (desde Flutter HTTP) como multipart/form-data.
+    Procesa automáticamente imágenes en base64 y archivos binarios.
+    """
+    content_type = request.headers.get("content-type", "")
 
+    titulo = ""
+    descripcion = ""
+    tags = None
     ruta_imagen = None
-    if archivo_imagen and archivo_imagen.filename:
-        extension = Path(archivo_imagen.filename).suffix.lower()
-        if extension not in [".jpg", ".jpeg", ".png", ".webp"]:
-            raise HTTPException(status_code=400, detail="Formato de imagen no permitido")
-        nombre_archivo = f"{uuid.uuid4().hex}{extension}"
-        destino = UPLOAD_DIR / nombre_archivo
-        with destino.open("wb") as buffer:
-            shutil.copyfileobj(archivo_imagen.file, buffer)
-        ruta_imagen = f"/uploads/{nombre_archivo}"
+
+    if "application/json" in content_type:
+        datos = await request.json()
+        titulo = datos.get("titulo", "").strip()
+        descripcion = (datos.get("descripcion") or datos.get("contenido") or "Sin contenido").strip()
+        tags = datos.get("tags")
+        if tags and str(tags).strip():
+            tags = str(tags).strip()
+        else:
+            tags = None
+
+        img_raw = datos.get("img") or datos.get("imagen")
+        if img_raw:
+            img_str = str(img_raw).strip()
+            if img_str.startswith("data:image") or (len(img_str) > 100 and ";" not in img_str and "/" not in img_str[:15]):
+                ruta_imagen = guardar_imagen_base64(img_str)
+            else:
+                ruta_imagen = img_str
+    else:
+        form = await request.form()
+        titulo = str(form.get("titulo", "")).strip()
+        descripcion = str(form.get("descripcion") or form.get("contenido") or "Sin contenido").strip()
+        tags_raw = form.get("tags")
+        tags = str(tags_raw).strip() if tags_raw else None
+
+        archivo = form.get("imagen") or form.get("img")
+        if archivo and hasattr(archivo, "filename") and archivo.filename:
+            extension = Path(archivo.filename).suffix.lower()
+            if extension in [".jpg", ".jpeg", ".png", ".webp"]:
+                nombre_archivo = f"blog_{uuid.uuid4().hex[:12]}{extension}"
+                destino = UPLOAD_DIR / nombre_archivo
+                with destino.open("wb") as buffer:
+                    shutil.copyfileobj(archivo.file, buffer)
+                ruta_imagen = f"/uploads/{nombre_archivo}"
+
+    if not titulo:
+        raise HTTPException(status_code=422, detail="El título es obligatorio")
 
     nuevo_blog = Blog(
-        titulo=titulo.strip(),
-        descripcion=texto_final,
+        titulo=titulo,
+        descripcion=descripcion,
         img=ruta_imagen,
-        tags=tags.strip() if tags and tags.strip() else None,
+        tags=tags,
     )
     db.add(nuevo_blog)
     db.commit()
@@ -310,11 +390,36 @@ async def crear_blog(
 
 
 # ==========================================
-# COMENTARIOS (APP MÓVIL)
+# COMENTARIOS (CON NOMBRE DE AUTOR)
 # ==========================================
 @app.get("/comentarios", response_model=list[ComentarioRespuesta])
-def listar_comentarios(db: Session = Depends(obtener_sesion)):
-    return db.scalars(select(Comentario).order_by(Comentario.id_com)).all()
+def listar_comentarios(
+    blog_id: int | None = None,
+    db: Session = Depends(obtener_sesion),
+):
+    query = (
+        select(Comentario, Usuario.nom_usr)
+        .outerjoin(Usuario, Comentario.usr_id == Usuario.id_usr)
+        .order_by(Comentario.id_com.asc())
+    )
+    if blog_id is not None:
+        query = query.where(Comentario.blog_id == blog_id)
+
+    resultados = db.execute(query).all()
+    lista = []
+    for com, autor_nombre in resultados:
+        lista.append(
+            ComentarioRespuesta(
+                id_com=com.id_com,
+                comentario=com.comentario,
+                fecha=com.fecha,
+                estatus=com.estatus,
+                usr_id=com.usr_id,
+                blog_id=com.blog_id,
+                autor=autor_nombre or "Usuario registrado",
+            )
+        )
+    return lista
 
 
 @app.post("/comentarios", response_model=ComentarioRespuesta, status_code=201)
@@ -324,9 +429,13 @@ def crear_comentario(
 ):
     if not datos.comentario.strip():
         raise HTTPException(status_code=422, detail="El comentario no puede estar vacío")
-    if db.get(Usuario, datos.usr_id) is None:
+
+    usuario = db.get(Usuario, datos.usr_id)
+    if usuario is None:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    if db.get(Blog, datos.blog_id) is None:
+
+    blog = db.get(Blog, datos.blog_id)
+    if blog is None:
         raise HTTPException(status_code=404, detail="Publicación no encontrada")
 
     nuevo = Comentario(
@@ -338,4 +447,13 @@ def crear_comentario(
     db.add(nuevo)
     db.commit()
     db.refresh(nuevo)
-    return nuevo
+
+    return ComentarioRespuesta(
+        id_com=nuevo.id_com,
+        comentario=nuevo.comentario,
+        fecha=nuevo.fecha,
+        estatus=nuevo.estatus,
+        usr_id=nuevo.usr_id,
+        blog_id=nuevo.blog_id,
+        autor=usuario.nom_usr,
+    )
