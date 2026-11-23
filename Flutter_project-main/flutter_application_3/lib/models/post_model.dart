@@ -15,10 +15,10 @@ class PostModel {
 
   factory PostModel.fromJson(Map<String, dynamic> json) {
     return PostModel(
-      id: (json['id_blog'] as num).toInt(),
+      id: (json['id_blog'] as num?)?.toInt() ?? 0,
       titulo: json['titulo']?.toString() ?? '',
-      descripcion: json['descripcion']?.toString() ?? '',
-      imagen: json['img']?.toString() ?? '',
+      descripcion: (json['descripcion'] ?? json['desc'])?.toString() ?? '',
+      imagen: (json['img'] ?? json['imagen'])?.toString() ?? '',
       tags: json['tags']?.toString() ?? '',
     );
   }

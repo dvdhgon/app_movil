@@ -11,7 +11,6 @@ class PostCard extends StatelessWidget {
     required this.onTap,
   });
 
-  // Función auxiliar para construir la imagen correctamente
   Widget _construirImagen(String? ruta) {
     if (ruta == null || ruta.isEmpty) {
       return Container(

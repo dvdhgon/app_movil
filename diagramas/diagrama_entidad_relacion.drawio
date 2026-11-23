@@ -1,0 +1,54 @@
+<mxfile host="app.diagrams.net" modified="2026-11-21T06:00:00.000Z" agent="Mozilla/5.0" version="24.0.0" type="device">
+  <diagram id="der-duncan" name="Modelo Entidad-Relación BD Duncan Mascotas">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Titulo -->
+        <mxCell id="der_titulo" value="MODELO ENTIDAD-RELACIÓN / RELACIONAL - BD bd_aplicacion_movil (MYSQL)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=18;fontStyle=1;fontColor=#722F37;" vertex="1" parent="1">
+          <mxGeometry x="160" y="30" width="850" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Tabla usuario -->
+        <mxCell id="tbl_usuario" value="&lt;b&gt;TABLA: usuario&lt;/b&gt;&#xa;--------------------------------------------&#xa;&lt;b&gt;[PK]&lt;/b&gt; id_usr : INT (AUTO_INCREMENT)&#xa;nom_usr : VARCHAR(100) NOT NULL&#xa;&lt;b&gt;[UQ]&lt;/b&gt; mail : VARCHAR(150) NOT NULL&#xa;pass : VARCHAR(255) NOT NULL (BCrypt/Argon2)&#xa;dir_usr : VARCHAR(200) NULL&#xa;tip_usu : INT NOT NULL DEFAULT 2 (1=Admin, 2=User)&#xa;foto_perfil : VARCHAR(500) NULL" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;html=1;fillColor=#FFFFFF;strokeColor=#722F37;align=left;" vertex="1" parent="1">
+          <mxGeometry x="80" y="130" width="320" height="200" as="geometry" />
+        </mxCell>
+
+        <!-- Tabla blog -->
+        <mxCell id="tbl_blog" value="&lt;b&gt;TABLA: blog&lt;/b&gt;&#xa;--------------------------------------------&#xa;&lt;b&gt;[PK]&lt;/b&gt; id_blog : INT (AUTO_INCREMENT)&#xa;titulo : VARCHAR(150) NOT NULL&#xa;desc : TEXT NULL&#xa;img : VARCHAR(500) NULL&#xa;tags : VARCHAR(255) NULL" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;html=1;fillColor=#FFFFFF;strokeColor=#722F37;align=left;" vertex="1" parent="1">
+          <mxGeometry x="760" y="130" width="300" height="170" as="geometry" />
+        </mxCell>
+
+        <!-- Tabla comentarios -->
+        <mxCell id="tbl_comentarios" value="&lt;b&gt;TABLA: comentarios&lt;/b&gt;&#xa;--------------------------------------------&#xa;&lt;b&gt;[PK]&lt;/b&gt; id_com : INT (AUTO_INCREMENT)&#xa;comentario : TEXT NOT NULL&#xa;fecha : DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP&#xa;estatus : INT NOT NULL DEFAULT 1&#xa;&lt;b&gt;[FK]&lt;/b&gt; usr_id : INT NOT NULL --&gt; usuario(id_usr)&#xa;&lt;b&gt;[FK]&lt;/b&gt; blog_id : INT NOT NULL --&gt; blog(id_blog)" style="swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;horizontalStack=0;resizeParent=1;resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;html=1;fillColor=#FFFFFF;strokeColor=#D4AF37;align=left;" vertex="1" parent="1">
+          <mxGeometry x="400" y="440" width="360" height="210" as="geometry" />
+        </mxCell>
+
+        <!-- Relación usuario -> comentarios -->
+        <mxCell id="rel_usr_fk" value="1 : N&#xa;(ON DELETE CASCADE)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0;entryY=0.5;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;strokeColor=#722F37;strokeWidth=2;fontStyle=1;fontColor=#722F37;" edge="1" parent="1" source="tbl_usuario" target="tbl_comentarios">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="240" y="545" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Relación blog -> comentarios -->
+        <mxCell id="rel_blog_fk" value="1 : N&#xa;(ON DELETE CASCADE)" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=1;entryY=0.5;entryDx=0;entryDy=0;exitX=0.5;exitY=1;exitDx=0;exitDy=0;strokeColor=#722F37;strokeWidth=2;fontStyle=1;fontColor=#722F37;" edge="1" parent="1" source="tbl_blog" target="tbl_comentarios">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="910" y="545" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+
+        <!-- Nota Técnica -->
+        <mxCell id="der_nota" value="Motor de BD: MySQL InnoDB&#xa;Codificación: utf8mb4 / utf8mb4_unicode_ci&#xa;Seguridad: Integridad referencial con claves foráneas, encriptación bcrypt/argon2 en pass." style="shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;fillColor=#FFF2CC;strokeColor=#D4AF37;fontSize=12;fontColor=#5A252B;align=left;spacingLeft=10;" vertex="1" parent="1">
+          <mxGeometry x="400" y="240" width="320" height="110" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

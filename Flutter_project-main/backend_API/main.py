@@ -99,9 +99,7 @@ def inicio():
     return {"mensaje": "API funcionando correctamente con sistema_duncan"}
 
 
-# ==========================================
 # AUTENTICACIÓN / LOGIN COMPARTIDO
-# ==========================================
 @app.post("/login", response_model=UsuarioRespuesta)
 def iniciar_sesion(
     datos: LoginRequest,
@@ -119,9 +117,7 @@ def iniciar_sesion(
     return usuario
 
 
-# ==========================================
 # REGISTRO Y GESTIÓN DE USUARIOS
-# ==========================================
 @app.post("/usuarios", response_model=UsuarioRespuesta, status_code=201)
 def crear_usuario(
     usuario_in: UsuarioCrear,
@@ -254,9 +250,7 @@ def eliminar_usuario(id_usuario: int, db: Session = Depends(obtener_sesion)):
     return {"mensaje": "Usuario eliminado correctamente"}
 
 
-# ==========================================
 # PUBLICACIONES / BLOG (APP MÓVIL)
-# ==========================================
 @app.get("/blog")
 @app.get("/blogs")
 def listar_blogs(db: Session = Depends(obtener_sesion)):
@@ -309,9 +303,7 @@ async def crear_blog(
     return nuevo_blog
 
 
-# ==========================================
 # COMENTARIOS (APP MÓVIL)
-# ==========================================
 @app.get("/comentarios", response_model=list[ComentarioRespuesta])
 def listar_comentarios(db: Session = Depends(obtener_sesion)):
     return db.scalars(select(Comentario).order_by(Comentario.id_com)).all()

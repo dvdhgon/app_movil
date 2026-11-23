@@ -46,7 +46,7 @@ class _MapaPageState extends State<MapaPage> {
           target: _centroQro,
           zoom: 13.0, 
         ),
-        markers: _misMarcadores, // Aquí pasamos los marcadores al mapa
+        markers: _misMarcadores,
       ),
     );
   }

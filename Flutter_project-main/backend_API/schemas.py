@@ -9,6 +9,18 @@ class UsuarioCrear(BaseModel):
     dir_usr: str | None = None
     tip_usu: int | str = 2
 
+    @field_validator("tip_usu", mode="before")
+    @classmethod
+    def normalizar_rol(cls, value):
+        if isinstance(value, str):
+            val = value.strip().lower()
+            if val in ("admin", "administrador", "1"):
+                return 1
+            return 2
+        if isinstance(value, int):
+            return 1 if value == 1 else 2
+        return 2
+
 
 class UsuarioRespuesta(BaseModel):
     id_usr: int
@@ -59,7 +71,7 @@ class LoginRequest(BaseModel):
 class BlogCrear(BaseModel):
     titulo: str = Field(min_length=2, max_length=150)
     descripcion: str = Field(min_length=1)
-    img: str | None = Field(default=None, max_length=500)
+    img: str | None = None
     tags: str | None = Field(default=None, max_length=255)
 
 
@@ -87,5 +99,6 @@ class ComentarioRespuesta(BaseModel):
     estatus: int
     usr_id: int
     blog_id: int
+    autor: str | None = None
 
     model_config = ConfigDict(from_attributes=True)

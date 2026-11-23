@@ -170,8 +170,6 @@ class _AddBlogPageState extends State<AddBlogPage> {
         ),
       );
 
-      // Evita la pantalla en blanco: regresa a la ventana anterior si existe,
-      // o navega directo al Blog si se abrió desde el Drawer
       if (Navigator.canPop(context)) {
         Navigator.pop(context, true);
       } else {

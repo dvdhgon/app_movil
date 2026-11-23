@@ -12,7 +12,6 @@ db_host = os.getenv("DB_HOST", "127.0.0.1")
 db_port = int(os.getenv("DB_PORT", "3309"))
 db_name = os.getenv("DB_NAME", "sistema_duncan")
 
-# Intenta crear la base de datos automáticamente si no existe en MySQL
 try:
     connection = pymysql.connect(
         host=db_host,
@@ -26,7 +25,6 @@ try:
 except Exception as e:
     print(f"Aviso BD: {e}")
 
-# Cadena de conexión principal
 if db_password:
     url = f"mysql+pymysql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}?charset=utf8mb4"
 else:
