@@ -1,30 +1,33 @@
 -- ==============================================================================
--- PROYECTO: DUNCAN MASCOTAS - EVALUACIÓN UNIDAD 3
--- MATERIA: APLICACIONES MÓVILES / WEB MULTIPLATAFORMA
--- UNIVERSIDAD TECNOLÓGICA DE QUERÉTARO (UTEQ)
--- AUTORES: Aaron Alexander Paniagua Chávez, David Hernández González
--- SCRIPT DE CREACIÓN DE BASE DE DATOS Y POBLADO DE DATOS (MYSQL)
+-- PROYECTO: DUNCAN MASCOTAS - BASE DE DATOS UNIFICADA (WEB + MÓVIL)
+-- Reinicia sistema_duncan dejando únicamente tus 2 usuarios configurados
 -- ==============================================================================
 
-CREATE DATABASE IF NOT EXISTS bd_aplicacion_movil
+DROP DATABASE IF EXISTS sistema_duncan;
+
+CREATE DATABASE sistema_duncan
 CHARACTER SET utf8mb4
 COLLATE utf8mb4_unicode_ci;
 
-USE bd_aplicacion_movil;
+USE sistema_duncan;
 
--- 1. TABLA: USUARIO
-CREATE TABLE IF NOT EXISTS usuario (
+-- ==============================================================================
+-- 1. TABLA COMPARTIDA: USUARIO (Web y App Móvil)
+-- ==============================================================================
+CREATE TABLE usuario (
     id_usr INT AUTO_INCREMENT PRIMARY KEY,
     nom_usr VARCHAR(100) NOT NULL,
     mail VARCHAR(150) NOT NULL UNIQUE,
     pass VARCHAR(255) NOT NULL,
     dir_usr VARCHAR(200) NULL,
-    tip_usu INT NOT NULL DEFAULT 2, -- 1 = Administrador, 2 = Usuario / Autor
+    tip_usu INT NOT NULL DEFAULT 1, -- En tu Web: 2 = Administrador, 1 = Usuario normal
     foto_perfil VARCHAR(500) NULL
 );
 
--- 2. TABLA: BLOG
-CREATE TABLE IF NOT EXISTS blog (
+-- ==============================================================================
+-- 2. TABLAS EXCLUSIVAS DE LA APP MÓVIL
+-- ==============================================================================
+CREATE TABLE blog (
     id_blog INT AUTO_INCREMENT PRIMARY KEY,
     titulo VARCHAR(150) NOT NULL,
     `desc` TEXT NULL,
@@ -32,8 +35,7 @@ CREATE TABLE IF NOT EXISTS blog (
     tags VARCHAR(255) NULL
 );
 
--- 3. TABLA: COMENTARIOS
-CREATE TABLE IF NOT EXISTS comentarios (
+CREATE TABLE comentarios (
     id_com INT AUTO_INCREMENT PRIMARY KEY,
     comentario TEXT NOT NULL,
     fecha DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -53,30 +55,53 @@ CREATE TABLE IF NOT EXISTS comentarios (
 );
 
 -- ==============================================================================
--- INSERCIÓN DE DATOS SEMILLA (USUARIOS DE PRUEBA CON CONTRASEÑAS ENCRIPTADAS BCrypt)
--- Contraseñas en texto plano para pruebas y video:
--- admin@duncan.com     -> Admin123*   (Rol 1: Administrador General)
--- aaron@duncan.com     -> Aaron123*   (Rol 2: Autor / Estudiante Aaron)
--- david@duncan.com     -> David123*   (Rol 2: Autor / Estudiante David)
--- adriana@uteq.edu.mx  -> Uteq2026*   (Rol 1: Docente / Evaluadora)
+-- 3. TABLAS EXCLUSIVAS DE LA PÁGINA WEB (Duncan Mascotas)
 -- ==============================================================================
+CREATE TABLE web_publicaciones (
+    id_publicacion INT AUTO_INCREMENT PRIMARY KEY,
+    titulo VARCHAR(255) NOT NULL,
+    contenido TEXT NOT NULL,
+    imagen VARCHAR(255) NULL,
+    etiquetas VARCHAR(255) NULL,
+    estado ENUM('borrador', 'publicada') DEFAULT 'publicada',
+    fecha_publicacion DATETIME DEFAULT CURRENT_TIMESTAMP,
+    id_autor INT NOT NULL,
 
+    CONSTRAINT fk_web_pub_autor
+        FOREIGN KEY (id_autor)
+        REFERENCES usuario(id_usr)
+        ON DELETE CASCADE
+);
+
+CREATE TABLE web_comentarios (
+    id_comentario INT AUTO_INCREMENT PRIMARY KEY,
+    comentario TEXT NOT NULL,
+    fecha_comentario DATETIME DEFAULT CURRENT_TIMESTAMP,
+    id_usuario INT NOT NULL,
+    id_publicacion INT NOT NULL,
+
+    CONSTRAINT fk_web_com_usu
+        FOREIGN KEY (id_usuario)
+        REFERENCES usuario(id_usr)
+        ON DELETE CASCADE,
+
+    CONSTRAINT fk_web_com_pub
+        FOREIGN KEY (id_publicacion)
+        REFERENCES web_publicaciones(id_publicacion)
+        ON DELETE CASCADE
+);
+
+-- ==============================================================================
+-- 4. TUS ÚNICOS USUARIOS INICIALES
+-- ==============================================================================
 INSERT INTO usuario (id_usr, nom_usr, mail, pass, dir_usr, tip_usu, foto_perfil)
 VALUES
-    (1, 'Administrador General', 'admin@duncan.com', '$2b$12$3kfPms2W583IxkktdfZIJeKXqF7cdZDD7ikWM/h2qoprRF465h.lS', 'Santiago de Querétaro, Qro.', 1, NULL),
-    (2, 'Aaron Alexander Paniagua Chávez', 'aaron@duncan.com', '$2b$12$E0DdWhbtXP9A2Mg/CavLkOqeqURfb0TQuZni6vu4nAcxMSyOEiW.C', 'Corregidora, Querétaro', 2, NULL),
-    (3, 'David Hernández González', 'david@duncan.com', '$2b$12$T.Vdpl1qtQ0MX.ITz9r2WO1SvErM7CfvXbMK4wM.yDdJb3aI2NsqC', 'El Marqués, Querétaro', 2, NULL),
-    (4, 'Adriana Y Contreras Alvarez', 'adriana@uteq.edu.mx', '$2b$12$JTm/Qxv21DFiFUewO99kveeeiqa0jYYbF4fGgvqmLejSjqCUnP3aq', 'Campus UTEQ Querétaro', 1, NULL)
-ON DUPLICATE KEY UPDATE
-    nom_usr = VALUES(nom_usr),
-    pass = VALUES(pass),
-    dir_usr = VALUES(dir_usr),
-    tip_usu = VALUES(tip_usu);
+    (1, 'Administrador', 'admin@gmail.com', '12345678', 'Querétaro', 2, NULL),
+    (2, 'Usuario Normal', 'miachoche@gmail.com', '12345678', 'Querétaro', 1, NULL);
 
 -- ==============================================================================
--- INSERCIÓN DE PUBLICACIONES DEL BLOG (DUNCAN MASCOTAS)
+-- 5. PUBLICACIONES Y COMENTARIOS INICIALES (APP MÓVIL)
 -- ==============================================================================
-
 INSERT INTO blog (id_blog, titulo, `desc`, img, tags)
 VALUES
     (
@@ -106,22 +131,35 @@ VALUES
         'Consejos prácticos para interactuar en áreas pet-friendly de Querétaro como la Alameda Hidalgo y el Parque Carretas, manteniendo siempre control con correa y respeto a otros perros.',
         'https://images.unsplash.com/photo-1548199973-03cce0bbc87b?auto=format&fit=crop&w=800&q=80',
         'Socialización, Parques, Querétaro'
-    )
-ON DUPLICATE KEY UPDATE
-    titulo = VALUES(titulo),
-    `desc` = VALUES(`desc`),
-    img = VALUES(img),
-    tags = VALUES(tags);
-
--- ==============================================================================
--- INSERCIÓN DE COMENTARIOS INICIALES
--- ==============================================================================
+    );
 
 INSERT INTO comentarios (id_com, comentario, estatus, usr_id, blog_id)
 VALUES
     (1, 'Excelente artículo, muy útil la información sobre la estimulación temprana de los cachorros.', 1, 2, 1),
-    (2, 'Totalmente de acuerdo, el paseo diario cambió por completo la energía de mi perro.', 1, 3, 2),
-    (3, 'Muy buen enfoque nutricional. Se nota la investigación técnica del equipo.', 1, 4, 3),
-    (4, 'Recomiendo ampliamente los parques de Querétaro mencionados en la publicación.', 1, 1, 4)
-ON DUPLICATE KEY UPDATE
-    comentario = VALUES(comentario);
+    (2, 'Totalmente de acuerdo, el paseo diario cambió por completo la energía de mi perro.', 1, 2, 2),
+    (3, 'Muy buen enfoque nutricional. Se nota la investigación técnica del equipo.', 1, 1, 3),
+    (4, 'Recomiendo ampliamente los parques de Querétaro mencionados en la publicación.', 1, 1, 4);
+
+-- ==============================================================================
+-- 6. PUBLICACIONES INICIALES (PÁGINA WEB)
+-- ==============================================================================
+INSERT INTO web_publicaciones (id_publicacion, titulo, contenido, imagen, etiquetas, estado, id_autor)
+VALUES
+    (
+        1,
+        'Cuidados Básicos para un Cachorro',
+        'Llevar un nuevo cachorro a casa requiere paciencia, alimentación balanceada y revisiones veterinarias constantes...',
+        'logo duncan.jpeg',
+        'salud,cachorros,cuidados',
+        'publicada',
+        1
+    ),
+    (
+        2,
+        'Importancia del Paseo Diario Canino',
+        'El ejercicio físico y la estimulación mental durante los paseos diarios reducen sensiblemente los niveles de estrés...',
+        '',
+        'paseo,bienestar,ejercicio',
+        'publicada',
+        1
+    );
